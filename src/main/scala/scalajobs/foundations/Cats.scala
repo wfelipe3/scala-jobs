@@ -25,5 +25,6 @@ object Cats:
     println(otherList)
     println(incrementer(List(1, 2, 3)))
     println(12.pure[List])
+    println(e)
 
 end Cats
