@@ -5,6 +5,8 @@ import cats.effect.IO
 import cats.effect.kernel.MonadCancelThrow
 import doobie.util.transactor.Transactor
 import doobie.implicits.*
+import doobie.util.ExecutionContexts
+import doobie.hikari.HikariTransactor
 
 object Doobie extends IOApp.Simple:
 
@@ -66,10 +68,24 @@ object Doobie extends IOApp.Simple:
             .transact(xa)
       }
 
-  override def run: IO[Unit] =
-    val students = Students.make(xa)
+  val postgresResource =
     for
-      _ <- students.create("felipe")
-      _ <- students.findAll.map(println)
-      _ <- findByInitialLetter("f").map(println)
-    yield ()
+      ec <- ExecutionContexts.fixedThreadPool[IO](16)
+      xa <- HikariTransactor.newHikariTransactor[IO](
+        "org.postgresql.Driver",
+        "jdbc:postgresql://localhost:5432/demo",
+        "docker",
+        "docker",
+        ec
+      )
+    yield xa
+
+  override def run: IO[Unit] =
+    postgresResource.use { xa =>
+      val students = Students.make(xa)
+      for
+        _ <- students.create("felipe")
+        _ <- students.findAll.map(println)
+        _ <- findByInitialLetter("f").map(println)
+      yield ()
+    }
